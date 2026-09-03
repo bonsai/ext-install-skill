@@ -1,6 +1,7 @@
 ---
 name: ext-install
-description: Use when the user wants to install or launch a browser extension via CLI from source code (not a built/zipped package). Keywords: 拡張をインストールして, 〇〇の拡張, browser extension install, --load-extension, 拡張ソース, extension source, cloneしてインストール, ソースのまま, .crx, crx pack, Edge, msedge. Covers cloning a GitHub repo, resolving the extension manifest, launching Edge/Chrome with the unpacked source, and packing to .crx for permanent installation.
+description: >-
+  Use when the user wants to install or launch a browser extension via CLI from source code (not a built/zipped package). Keywords include 拡張をインストールして, 〇〇の拡張, browser extension install, --load-extension, 拡張ソース, extension source, cloneしてインストール, ソースのまま, .crx, crx pack, Edge, msedge. Covers cloning a GitHub repo, resolving the extension manifest, launching Edge/Chrome with the unpacked source, and packing to .crx for permanent installation.
 ---
 
 # ext-install — 拡張ソースを CLI でインストール＆起動
@@ -51,7 +52,7 @@ google-chrome --pack-extension=<フォルダ> --pack-extension-key=<key.pem>  # 
 ```
 - 出力: `<フォルダ>.crx`（配布用）+ `<key>.pem`（署名キー・**gitignore必須**）
 - `.crx` を `chrome://extensions` / `edge://extensions` へドラッグ&ドロップ（デベロッパーモードON）で永続インストール
-- **Edge は .crx を弾く場合がある**。その場合は方法C（ソースのまま）を使用
+- **Edge は .crx を弾く場合がある**。その場合は `--load-extension` でソースのまま使用する。
 
 ## ドライバスクリプト
 同梱 `install.ps1`（Windows PowerShell）:
