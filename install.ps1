@@ -1,10 +1,11 @@
 param(
   [Parameter(Mandatory=$true, Position=0)]
-  [string]$Url,
+  [string]$Repository,
   [ValidateSet('edge','chrome','auto')]
-  [string]$Browser = 'auto'
+  [string]$Browser = 'auto',
+  [string]$Url = ''
 )
 
 $script = Join-Path $PSScriptRoot 'ext-install.ps1'
-& $script -Url $Url -Browser $Browser
+& $script -Repository $Repository -Browser $Browser -Url $Url
 exit $LASTEXITCODE
