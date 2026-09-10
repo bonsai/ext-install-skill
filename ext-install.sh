@@ -1,48 +1,89 @@
 #!/usr/bin/env bash
-# ext-install: 拡張ソースをclone→--load-extensionでブラウザ起動
 set -euo pipefail
 
-REPO="${1:?usage: ext-install <owner/repo> [url] [browser]}"
-URL="${2:-}"
-BROWSER="${3:-auto}"
+REPOSITORY="${1:?usage: ext-install <owner/repo|github-url> [browser] [url]}"
+BROWSER="${2:-auto}"
+URL="${3:-}"
 
-BASE="${LOCALAPPDATA:-$HOME/.local/share}/extensions"
-DIR="$BASE/${REPO//\//-}"
+normalize_repo() {
+  local value="$1"
+  value="${value%/}"
+  if [[ "$value" =~ ^https://github\.com/([^/]+)/([^/#?]+)(\.git)?$ ]]; then
+    echo "${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+  elif [[ "$value" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+    echo "$value"
+  else
+    echo "invalid GitHub repository: $value" >&2
+    exit 2
+  fi
+}
+
+REPO="$(normalize_repo "$REPOSITORY")"
+OWNER="${REPO%%/*}"
+NAME="${REPO#*/}"
+BASE="${LOCALAPPDATA:-$HOME/.local/share}/ext-install"
+DIR="$BASE/$OWNER-$NAME"
+mkdir -p "$BASE"
 
 echo "[1/3] source: $DIR"
-if [ -d "$DIR/.git" ]; then
+if [[ -d "$DIR/.git" ]]; then
   git -C "$DIR" pull --ff-only
 else
-  gh repo clone "$REPO" "$DIR"
+  if command -v gh >/dev/null 2>&1; then
+    gh repo clone "$REPO" "$DIR"
+  else
+    git clone "https://github.com/$REPO.git" "$DIR"
+  fi
 fi
 
-EXT_DIR="$DIR"
-if [ ! -f "$DIR/manifest.json" ]; then
-  # manifest を含むサブフォルダを探す
-  EXT_DIR=$(find "$DIR" -name manifest.json -maxdepth 2 -printf '%h\n' | head -1)
+EXT_DIR=""
+if [[ -f "$DIR/manifest.json" ]]; then
+  EXT_DIR="$DIR"
+else
+  while IFS= read -r manifest; do
+    EXT_DIR="$(dirname "$manifest")"
+    break
+done < <(find "$DIR" -maxdepth 3 -type f -name manifest.json -print)
 fi
-[ -n "$EXT_DIR" ] && [ -f "$EXT_DIR/manifest.json" ] || { echo "manifest.json が見つかりません"; exit 1; }
+[[ -n "$EXT_DIR" && -f "$EXT_DIR/manifest.json" ]] || { echo "manifest.json not found under $DIR" >&2; exit 1; }
+
+node -e 'const fs=require("fs"); const m=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if(![2,3].includes(m.manifest_version)||!m.name) process.exit(1);' "$EXT_DIR/manifest.json" || {
+  echo "invalid extension manifest" >&2
+  exit 1
+}
 
 echo "[2/3] manifest: $EXT_DIR/manifest.json"
 
-detect_chrome() {
-  for p in \
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge" \
-    "$(command -v google-chrome || true)" \
-    "$(command -v chromium || true)" \
-    "$(command -v microsoft-edge || true)"; do
-    [ -n "$p" ] && [ -x "$p" ] && { echo "$p"; return 0; }
-  done
-  [ -n "${CHROME_PATH:-}" ] && echo "$CHROME_PATH" && return 0
-  return 1
+find_browser() {
+  case "$BROWSER" in
+    edge) printf '%s\n' "${EDGE_PATH:-$(command -v microsoft-edge || command -v msedge || true)}" ;;
+    chrome) printf '%s\n' "${CHROME_PATH:-$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)}" ;;
+    auto)
+      printf '%s\n' "${EDGE_PATH:-$(command -v microsoft-edge || command -v msedge || true)}"
+      printf '%s\n' "${CHROME_PATH:-$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)}"
+      ;;
+    *) echo "browser must be edge, chrome, or auto" >&2; exit 2 ;;
+  esac
 }
 
-CHROME=$(detect_chrome) || { echo "ブラウザが見つかりません"; exit 1; }
-echo "[3/3] launch: $CHROME --load-extension=$EXT_DIR"
+BROWSER_PATH=""
+while IFS= read -r candidate; do
+  if [[ -n "$candidate" && -x "$candidate" ]]; then BROWSER_PATH="$candidate"; break; fi
+done < <(find_browser)
 
-ARGS=("--load-extension=$EXT_DIR")
-[ -n "$URL" ] && ARGS+=("--new-window" "$URL")
-"$CHROME" "${ARGS[@]}" &
+if [[ -z "$BROWSER_PATH" && -n "${WSL_INTEROP:-}" ]]; then
+  if [[ "$BROWSER" != "chrome" ]]; then BROWSER_PATH="$(command -v powershell.exe >/dev/null 2>&1 && echo powershell.exe || true)"; fi
+fi
+[[ -n "$BROWSER_PATH" ]] || { echo "browser not found: $BROWSER" >&2; exit 1; }
 
-echo "完了。ブラウザが拡張込みで起動しました。"
+LOAD_PATH="$EXT_DIR"
+if [[ "$BROWSER_PATH" == *.exe || "$BROWSER_PATH" == "powershell.exe" ]]; then
+  LOAD_PATH="$(wslpath -w "$EXT_DIR" 2>/dev/null || printf '%s' "$EXT_DIR")"
+fi
+
+echo "[3/3] launch: $BROWSER_PATH --load-extension=$LOAD_PATH"
+ARGS=("--load-extension=$LOAD_PATH")
+[[ -n "$URL" ]] && ARGS+=("--new-window" "$URL")
+"$BROWSER_PATH" "${ARGS[@]}" &
+
+echo "Installed and launched: $REPO"
