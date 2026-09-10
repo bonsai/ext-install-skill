@@ -18,10 +18,30 @@ normalize_repo() {
   fi
 }
 
+windows_downloads() {
+  if [[ -n "${WSL_INTEROP:-}" ]] && command -v cmd.exe >/dev/null 2>&1 && command -v wslpath >/dev/null 2>&1; then
+    local profile
+    profile="$(cmd.exe /c 'echo %USERPROFILE%' 2>/dev/null | tr -d '\r')"
+    if [[ "$profile" =~ ^[A-Za-z]:\\Users\\[^\\]+$ ]]; then
+      wslpath -u "$profile\\Downloads"
+      return 0
+    fi
+  fi
+  return 1
+}
+
 REPO="$(normalize_repo "$REPOSITORY")"
 OWNER="${REPO%%/*}"
 NAME="${REPO#*/}"
-BASE="${LOCALAPPDATA:-$HOME/.local/share}/ext-install"
+
+# When the Skill is running from WSL, keep installed extension sources in the
+# Windows user's Downloads folder so Windows Edge/Chrome can access them.
+if BASE_WIN="$(windows_downloads)"; then
+  BASE="$BASE_WIN/ext-install"
+else
+  BASE="${LOCALAPPDATA:-$HOME/.local/share}/ext-install"
+fi
+
 DIR="$BASE/$OWNER-$NAME"
 mkdir -p "$BASE"
 
@@ -56,8 +76,12 @@ echo "[2/3] manifest: $EXT_DIR/manifest.json"
 
 find_browser() {
   case "$BROWSER" in
-    edge) printf '%s\n' "${EDGE_PATH:-$(command -v microsoft-edge || command -v msedge || true)}" ;;
-    chrome) printf '%s\n' "${CHROME_PATH:-$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)}" ;;
+    edge)
+      printf '%s\n' "${EDGE_PATH:-$(command -v microsoft-edge || command -v msedge || true)}"
+      ;;
+    chrome)
+      printf '%s\n' "${CHROME_PATH:-$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)}"
+      ;;
     auto)
       printf '%s\n' "${EDGE_PATH:-$(command -v microsoft-edge || command -v msedge || true)}"
       printf '%s\n' "${CHROME_PATH:-$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)}"
@@ -71,13 +95,21 @@ while IFS= read -r candidate; do
   if [[ -n "$candidate" && -x "$candidate" ]]; then BROWSER_PATH="$candidate"; break; fi
 done < <(find_browser)
 
-if [[ -z "$BROWSER_PATH" && -n "${WSL_INTEROP:-}" ]]; then
-  if [[ "$BROWSER" != "chrome" ]]; then BROWSER_PATH="$(command -v powershell.exe >/dev/null 2>&1 && echo powershell.exe || true)"; fi
+# In WSL, prefer the Windows browser when no Linux browser is available.
+if [[ -z "$BROWSER_PATH" && -n "${WSL_INTEROP:-}" ]] && command -v cmd.exe >/dev/null 2>&1; then
+  case "$BROWSER" in
+    edge|auto)
+      BROWSER_PATH="msedge.exe"
+      ;;
+    chrome)
+      BROWSER_PATH="chrome.exe"
+      ;;
+  esac
 fi
 [[ -n "$BROWSER_PATH" ]] || { echo "browser not found: $BROWSER" >&2; exit 1; }
 
 LOAD_PATH="$EXT_DIR"
-if [[ "$BROWSER_PATH" == *.exe || "$BROWSER_PATH" == "powershell.exe" ]]; then
+if [[ "$BROWSER_PATH" == *.exe ]]; then
   LOAD_PATH="$(wslpath -w "$EXT_DIR" 2>/dev/null || printf '%s' "$EXT_DIR")"
 fi
 
