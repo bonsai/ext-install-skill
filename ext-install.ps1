@@ -9,7 +9,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $Version = '0.4.0'
 
-Write-Host "Bonsai Ext Install v$Version"
+Write-Host "Bonsai CRX Install v$Version"
 Write-Host "--------------------------------"
 
 function Normalize-Repository {
@@ -82,7 +82,7 @@ $parts = $repo.Split('/')
 $owner = $parts[0]
 $name = $parts[1]
 $downloads = Get-DownloadsDirectory
-$base = Join-Path $downloads 'ext-install'
+$base = Join-Path $downloads 'crx-install'
 $dir = Join-Path $base "$owner-$name"
 New-Item -ItemType Directory -Force -Path $base | Out-Null
 
