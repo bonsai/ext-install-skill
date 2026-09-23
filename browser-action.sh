@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ext-browser-action: URL-first browser handoff used by ext-install.
+# crx-browser-action: URL-first browser handoff used by crx-install.
 set -euo pipefail
 
 ACTION="${1:-open_url}"
