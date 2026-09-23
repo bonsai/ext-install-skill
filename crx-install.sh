@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPOSITORY="${1:?usage: ext-install <owner/repo|github-url> [browser] [url]}"
+REPOSITORY="${1:?usage: crx-install <owner/repo|github-url> [browser] [url]}"
 BROWSER="${2:-auto}"
 URL="${3:-}"
 
@@ -34,12 +34,10 @@ REPO="$(normalize_repo "$REPOSITORY")"
 OWNER="${REPO%%/*}"
 NAME="${REPO#*/}"
 
-# When the Skill is running from WSL, keep installed extension sources in the
-# Windows user's Downloads folder so Windows Edge/Chrome can access them.
 if BASE_WIN="$(windows_downloads)"; then
-  BASE="$BASE_WIN/ext-install"
+  BASE="$BASE_WIN/crx-install"
 else
-  BASE="${LOCALAPPDATA:-$HOME/.local/share}/ext-install"
+  BASE="${LOCALAPPDATA:-$HOME/.local/share}/crx-install"
 fi
 
 DIR="$BASE/$OWNER-$NAME"
@@ -63,7 +61,7 @@ else
   while IFS= read -r manifest; do
     EXT_DIR="$(dirname "$manifest")"
     break
-done < <(find "$DIR" -maxdepth 3 -type f -name manifest.json -print)
+  done < <(find "$DIR" -maxdepth 3 -type f -name manifest.json -print)
 fi
 [[ -n "$EXT_DIR" && -f "$EXT_DIR/manifest.json" ]] || { echo "manifest.json not found under $DIR" >&2; exit 1; }
 
@@ -76,12 +74,8 @@ echo "[2/3] manifest: $EXT_DIR/manifest.json"
 
 find_browser() {
   case "$BROWSER" in
-    edge)
-      printf '%s\n' "${EDGE_PATH:-$(command -v microsoft-edge || command -v msedge || true)}"
-      ;;
-    chrome)
-      printf '%s\n' "${CHROME_PATH:-$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)}"
-      ;;
+    edge) printf '%s\n' "${EDGE_PATH:-$(command -v microsoft-edge || command -v msedge || true)}" ;;
+    chrome) printf '%s\n' "${CHROME_PATH:-$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)}" ;;
     auto)
       printf '%s\n' "${EDGE_PATH:-$(command -v microsoft-edge || command -v msedge || true)}"
       printf '%s\n' "${CHROME_PATH:-$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)}"
@@ -95,15 +89,10 @@ while IFS= read -r candidate; do
   if [[ -n "$candidate" && -x "$candidate" ]]; then BROWSER_PATH="$candidate"; break; fi
 done < <(find_browser)
 
-# In WSL, prefer the Windows browser when no Linux browser is available.
 if [[ -z "$BROWSER_PATH" && -n "${WSL_INTEROP:-}" ]] && command -v cmd.exe >/dev/null 2>&1; then
   case "$BROWSER" in
-    edge|auto)
-      BROWSER_PATH="msedge.exe"
-      ;;
-    chrome)
-      BROWSER_PATH="chrome.exe"
-      ;;
+    edge|auto) BROWSER_PATH="msedge.exe" ;;
+    chrome) BROWSER_PATH="chrome.exe" ;;
   esac
 fi
 [[ -n "$BROWSER_PATH" ]] || { echo "browser not found: $BROWSER" >&2; exit 1; }

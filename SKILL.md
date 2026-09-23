@@ -1,12 +1,12 @@
 ---
-name: ext-install
+name: crx-install
 description: >-
   Install a browser extension from a GitHub source repository. Normalize the repository,
   clone or update it, discover and validate manifest.json, then launch Edge or Chrome with
   --load-extension. Research and browser-action helpers are secondary and do not own install logic.
 ---
 
-# ext-install
+# crx-install
 
 **GitHub source → clone/update → manifest → browser launch** を一つのCLI/Skill契約として扱う。
 
@@ -25,7 +25,7 @@ GitHub URL / owner/repo
 ## CLI contract
 
 ```text
-ext-install <owner/repo|GitHub URL> [browser] [url]
+crx-install <owner/repo|GitHub URL> [browser] [url]
 ```
 
 `browser`:
@@ -39,15 +39,15 @@ ext-install <owner/repo|GitHub URL> [browser] [url]
 ### PowerShell
 
 ```powershell
-.\ext-install.ps1 bonsai/hw-msedge-ext edge
-.\ext-install.ps1 https://github.com/bonsai/hw-msedge-ext.git edge https://github.com/
+.\crx-install.ps1 bonsai/hw-msedge-crx edge
+.\crx-install.ps1 https://github.com/bonsai/hw-msedge-crx.git edge https://github.com/
 ```
 
 ### Shell
 
 ```bash
-./ext-install.sh bonsai/hw-msedge-ext edge
-./ext-install.sh https://github.com/bonsai/hw-msedge-ext.git chrome https://github.com/
+./crx-install.sh bonsai/hw-msedge-crx edge
+./crx-install.sh https://github.com/bonsai/hw-msedge-crx.git chrome https://github.com/
 ```
 
 ## Install steps
@@ -78,7 +78,7 @@ gh repo clone <owner/repo> <workdir>
 git -C <workdir> pull --ff-only
 ```
 
-作業ディレクトリはOSのユーザーデータ領域配下の `ext-install/<owner>-<repo>` を使用する。
+作業ディレクトリはOSのユーザーデータ領域配下の `crx-install/<owner>-<repo>` を使用する。
 
 ### 3. Manifest discovery
 
@@ -106,7 +106,7 @@ Chrome: --load-extension=<extension-dir>
 ## Architecture
 
 ```text
-ext-install-skill
+crx-install-skill
   ├─ normalize
   ├─ clone / update
   ├─ manifest discovery
@@ -115,7 +115,7 @@ ext-install-skill
           ↓
    Edge / Chrome
 
-ext-install-ext
+crx-install-ext
   └─ thin browser UI / handoff only
 ```
 

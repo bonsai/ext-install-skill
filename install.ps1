@@ -6,6 +6,6 @@ param(
   [string]$Url = ''
 )
 
-$script = Join-Path $PSScriptRoot 'ext-install.ps1'
+$script = Join-Path $PSScriptRoot 'crx-install.ps1'
 & $script -Repository $Repository -Browser $Browser -Url $Url
 exit $LASTEXITCODE
